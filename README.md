@@ -5,7 +5,7 @@ Public-safe OpenClaw starter for AI SaaS work on NVIDIA-hosted models.
 Maintained by [Autopilot AI Tech](https://github.com/autopilotaitech)  
 Website: [autopilotaitech.com](https://autopilotaitech.com)
 
-If this starter saves you time, leave a tip here:    [![Tip Jar](https://img.shields.io/badge/Tip-Jar-ff6b6b?style=for-the-badge)](https://buy.stripe.com/cNi28q3bZ4Vf3gpdXoenS03)
+If this starter saves you time, leave a tip here: [![Tip Jar](https://img.shields.io/badge/Tip-Jar-ff6b6b?style=for-the-badge)](https://buy.stripe.com/cNi28q3bZ4Vf3gpdXoenS03)
 
 ## Acknowledgements
 
@@ -63,9 +63,9 @@ This repo is meant to be public-safe.
 - `projects/*` is ignored so your actual app repos stay local
 - `OPENCLAW_LOCAL_CONTROL_UI_RELAXED=true` is the local-dev default so the Control UI works on localhost without pairing. Do not use that setting on a VPS/public deployment without replacing it with proper auth hardening.
 
-Public defaults live in [`.env.example`](.env.example).
+Public defaults live in `.env.example`.
 
-Local machine overrides belong in [`.env`](.env). On this machine, local testing used:
+Local machine overrides belong in `.env`. For example:
 
 ```text
 OPENCLAW_IMAGE=openclaw-local:latest
@@ -299,4 +299,4 @@ docker compose logs -f openclaw-gateway
 
 ## License
 
-This project is released under the MIT License. See [LICENSE](LICENSE).
+This project is released under the MIT License. See `LICENSE`.

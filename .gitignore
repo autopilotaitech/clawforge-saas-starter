@@ -6,6 +6,8 @@ vendor/superpowers/
 vendor/context-hub/
 projects/*
 !projects/.gitkeep
+to-do/
+monitor/*.log
+monitor/*.pid
 .DS_Store
 Thumbs.db
-

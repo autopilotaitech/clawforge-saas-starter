@@ -1,0 +1,11 @@
+.env
+.openclaw/
+.data/
+upstream/
+vendor/superpowers/
+vendor/context-hub/
+projects/*
+!projects/.gitkeep
+.DS_Store
+Thumbs.db
+

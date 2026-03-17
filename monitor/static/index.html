@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClawScope</title>
+    <style>
+      :root {
+        --bg: #0c1118;
+        --panel: #141c28;
+        --panel-2: #1b2636;
+        --panel-3: #111926;
+        --text: #edf4ff;
+        --muted: #91a0b8;
+        --accent: #7dd3fc;
+        --accent-2: #f9a826;
+        --good: #38d39f;
+        --warn: #f6c244;
+        --bad: #ff6b6b;
+        --line: rgba(255, 255, 255, 0.09);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(125, 211, 252, 0.18), transparent 30%),
+          radial-gradient(circle at top right, rgba(249, 168, 38, 0.12), transparent 28%),
+          var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      .wrap {
+        width: min(1680px, 100vw);
+        margin: 0 auto;
+        padding: 18px;
+        height: 100vh;
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        gap: 14px;
+      }
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 32px;
+        letter-spacing: -0.04em;
+      }
+      .sub {
+        color: var(--muted);
+        margin-top: 4px;
+        font-size: 14px;
+      }
+      .pill {
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.03);
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 8px 12px;
+        white-space: nowrap;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 14px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+        min-height: 0;
+      }
+      .metric-label {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .metric-value {
+        margin-top: 8px;
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .metric-note {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .main {
+        display: grid;
+        grid-template-columns: 1.25fr 1.05fr 0.8fr;
+        gap: 14px;
+        min-height: 0;
+      }
+      .column {
+        display: grid;
+        gap: 14px;
+        min-height: 0;
+      }
+      .left-col {
+        grid-template-rows: 1.2fr 0.9fr;
+      }
+      .mid-col {
+        grid-template-rows: 1fr 1fr;
+      }
+      .right-col {
+        grid-template-rows: auto auto 1fr;
+      }
+      .panel {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 0;
+      }
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .panel-meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .scroll {
+        min-height: 0;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .scroll-x-off { overflow-x: hidden; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        text-align: left;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+        font-size: 14px;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .task-list, .event-list, .alert-list, .summary-list {
+        display: grid;
+        gap: 10px;
+      }
+      .task {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        border-radius: 14px;
+        padding: 12px;
+      }
+      .task-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+      .task-title {
+        font-weight: 700;
+        line-height: 1.3;
+      }
+      .task-meta, .event-meta, .alert-meta, .small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .task-status {
+        min-width: 72px;
+        text-align: right;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .status-good { color: var(--good); }
+      .status-warn { color: var(--warn); }
+      .status-bad { color: var(--bad); }
+      .progress {
+        margin-top: 10px;
+        height: 10px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress-bar {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }
+      .task-bottom {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.04);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .event, .alert, .summary-item {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        border-radius: 14px;
+        padding: 10px 12px;
+      }
+      .event-message {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.35;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      code {
+        font-family: Consolas, monospace;
+        color: var(--accent);
+        word-break: break-all;
+      }
+      @media (max-width: 1320px) {
+        .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .main { grid-template-columns: 1fr; }
+        body { overflow: auto; }
+        .wrap { height: auto; min-height: 100vh; grid-template-rows: auto auto auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <div>
+          <h1>ClawScope</h1>
+          <div class="sub">Operator view for OpenClaw runs, live tasks, and transcript-backed progress.</div>
+        </div>
+        <div class="pill" id="generatedAt">Waiting for first poll...</div>
+      </div>
+
+      <div class="stats">
+        <div class="card">
+          <div class="metric-label">Gateway</div>
+          <div class="metric-value" id="gatewayHealthy">-</div>
+          <div class="metric-note" id="gatewayMode">Awaiting snapshot</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Live Tasks</div>
+          <div class="metric-value" id="activeTasks">-</div>
+          <div class="metric-note">Running or blocked work items</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Avg Progress</div>
+          <div class="metric-value" id="avgProgress">-</div>
+          <div class="metric-note">Transcript-derived estimate</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Parallelism</div>
+          <div class="metric-value" id="executionMode">-</div>
+          <div class="metric-note" id="activeAgentsNote">Agent spread unknown</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Sessions</div>
+          <div class="metric-value" id="activeSessions">-</div>
+          <div class="metric-note">OpenClaw conversation stores</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Stale Sessions</div>
+          <div class="metric-value" id="staleSessions">-</div>
+          <div class="metric-note">No activity past threshold</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Preview</div>
+          <div class="metric-value" id="previewState">Local</div>
+          <div class="metric-note" id="previewStateNote">Waiting for tunnel</div>
+        </div>
+        <div class="card">
+          <div class="metric-label">Last Event</div>
+          <div class="metric-value" id="lastEventAge">-</div>
+          <div class="metric-note">Freshness of event stream</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="column left-col">
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Task Board</h2>
+              <div class="panel-meta">Live and recent work from session transcripts</div>
+            </div>
+            <div class="scroll scroll-x-off">
+              <div class="task-list" id="tasks"></div>
+            </div>
+          </div>
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Sessions</h2>
+              <div class="panel-meta">Stored agent sessions and last activity</div>
+            </div>
+            <div class="scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Session</th>
+                    <th>Last Activity</th>
+                    <th>Model</th>
+                  </tr>
+                </thead>
+                <tbody id="sessionsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="column mid-col">
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Event Timeline</h2>
+              <div class="panel-meta">Newest gateway events first</div>
+            </div>
+            <div class="scroll scroll-x-off">
+              <div class="event-list" id="events"></div>
+            </div>
+          </div>
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Health</h2>
+              <div class="panel-meta">Raw gateway health snapshot</div>
+            </div>
+            <div class="scroll">
+              <pre id="healthRaw" class="small"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="column right-col">
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Alerts</h2>
+              <div class="panel-meta">Stalls, warnings, and errors</div>
+            </div>
+            <div class="scroll" style="max-height: 200px;">
+              <div class="alert-list" id="alerts"></div>
+            </div>
+          </div>
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Agent Spread</h2>
+              <div class="panel-meta">How many tracks each agent owns</div>
+            </div>
+            <div class="scroll">
+              <div class="summary-list" id="agentSpread"></div>
+            </div>
+          </div>
+          <div class="card panel">
+            <div class="panel-head">
+              <h2>Operator Summary</h2>
+              <div class="panel-meta">Fast access endpoints</div>
+            </div>
+            <div class="summary-list">
+              <div class="summary-item">
+                <div class="small">Local Preview</div>
+                <div><code id="previewLocal">-</code></div>
+              </div>
+              <div class="summary-item">
+                <div class="small">Public Preview</div>
+                <div><code id="previewPublic">-</code></div>
+              </div>
+              <div class="summary-item">
+                <div class="small">Gateway URL</div>
+                <div><code id="gatewayUrl">-</code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function prettyAge(ms) {
+        if (ms == null) return "unknown";
+        if (ms < 1000) return `${ms}ms`;
+        const sec = Math.floor(ms / 1000);
+        if (sec < 60) return `${sec}s`;
+        const min = Math.floor(sec / 60);
+        if (min < 60) return `${min}m`;
+        const hr = Math.floor(min / 60);
+        return `${hr}h ${min % 60}m`;
+      }
+
+      function statusWord(ok) {
+        return ok ? "Healthy" : "Degraded";
+      }
+
+      function modeWord(mode) {
+        if (mode === "parallel") return "Parallel";
+        if (mode === "serial") return "Serial";
+        if (mode === "idle") return "Idle";
+        return "Unknown";
+      }
+
+      function taskStatusClass(task) {
+        if (task.status === "complete") return "status-good";
+        if (task.status === "blocked") return "status-bad";
+        return "status-warn";
+      }
+
+      function render(state) {
+        document.getElementById("generatedAt").textContent = state.generatedAt
+          ? `Updated ${new Date(state.generatedAt).toLocaleString()}`
+          : "Waiting for first poll...";
+
+        document.getElementById("gatewayHealthy").textContent = statusWord(state.summary.gatewayHealthy);
+        document.getElementById("gatewayHealthy").className = `metric-value ${state.summary.gatewayHealthy ? "status-good" : "status-bad"}`;
+        document.getElementById("gatewayMode").textContent = state.status?.data?.gateway?.url || "Gateway URL unavailable";
+        document.getElementById("gatewayUrl").textContent = state.status?.data?.gateway?.url || "-";
+
+        document.getElementById("activeTasks").textContent = state.summary.activeTasks;
+        document.getElementById("avgProgress").textContent = state.summary.avgProgressPct == null ? "-" : `${state.summary.avgProgressPct}%`;
+        document.getElementById("executionMode").textContent = modeWord(state.summary.executionMode);
+        document.getElementById("executionMode").className = `metric-value ${state.summary.executionMode === "parallel" ? "status-good" : state.summary.executionMode === "serial" ? "status-warn" : ""}`;
+        document.getElementById("activeAgentsNote").textContent = `${state.summary.activeAgents} active agent${state.summary.activeAgents === 1 ? "" : "s"}`;
+        document.getElementById("activeSessions").textContent = state.summary.activeSessions;
+        document.getElementById("staleSessions").textContent = state.summary.staleSessions;
+        document.getElementById("lastEventAge").textContent = prettyAge(state.summary.lastEventAgeMs);
+
+        document.getElementById("previewLocal").textContent = state.preview.localUrl || "-";
+        document.getElementById("previewPublic").textContent = state.preview.publicUrl || "-";
+        document.getElementById("previewState").textContent = state.preview.publicUrl ? "Public" : "Local";
+        document.getElementById("previewStateNote").textContent = state.preview.publicUrl || state.preview.localUrl || "No preview URL";
+
+        const tasks = (state.tasks || []).map((task) => `
+          <div class="task">
+            <div class="task-top">
+              <div>
+                <div class="task-title">${escapeHtml(task.title)}</div>
+                <div class="task-meta">${escapeHtml(task.agent)} · ${escapeHtml(task.phase)} · ${prettyAge(task.ageMs)} old</div>
+              </div>
+              <div class="task-status ${taskStatusClass(task)}">${escapeHtml(task.status)}</div>
+            </div>
+            <div class="progress">
+              <div class="progress-bar" style="width:${Math.max(0, Math.min(100, task.progressPct || 0))}%"></div>
+            </div>
+            <div class="task-bottom">
+              <div><strong>${task.progressPct}%</strong> complete</div>
+              ${task.prompt ? `<div class="small">${escapeHtml(task.prompt)}</div>` : ""}
+              ${task.recentTools?.length ? `<div class="chips">${task.recentTools.map((tool) => `<div class="chip">${escapeHtml(tool)}</div>`).join("")}</div>` : ""}
+              ${task.finalAssistantText ? `<div class="small">Last answer: ${escapeHtml(task.finalAssistantText)}</div>` : ""}
+            </div>
+          </div>
+        `).join("");
+        document.getElementById("tasks").innerHTML = tasks || `<div class="small">No transcript-backed tasks found yet.</div>`;
+
+        const sessions = (state.sessions || []).map((session) => `
+          <tr>
+            <td>${escapeHtml(session.agent)}</td>
+            <td>${escapeHtml(session.title)}<div class="small">${escapeHtml(session.id)}</div></td>
+            <td class="${session.stale ? "status-warn" : ""}">${session.updatedAt ? new Date(session.updatedAt).toLocaleString() : "unknown"}<div class="small">${prettyAge(session.ageMs)} ago</div></td>
+            <td>${escapeHtml(session.model || "-")}</td>
+          </tr>
+        `).join("");
+        document.getElementById("sessionsTable").innerHTML = sessions || `<tr><td colspan="4" class="small">No active or stored sessions reported.</td></tr>`;
+
+        const alerts = (state.alerts || []).map((alert) => `
+          <div class="alert">
+            <div class="alert-meta ${alert.level === "error" ? "status-bad" : "status-warn"}">${escapeHtml(alert.kind)}</div>
+            <div>${escapeHtml(alert.message)}</div>
+          </div>
+        `).join("");
+        document.getElementById("alerts").innerHTML = alerts || `<div class="small">No active alerts.</div>`;
+
+        const spread = (state.agentSpread || []).map((item) => `
+          <div class="summary-item">
+            <div class="small">${escapeHtml(item.agent)}</div>
+            <div>${item.sessionsCount} session${item.sessionsCount === 1 ? "" : "s"}</div>
+          </div>
+        `).join("");
+        document.getElementById("agentSpread").innerHTML = spread || `<div class="small">No active agent tracks.</div>`;
+
+        const events = [...(state.events || [])].reverse().slice(0, 80).map((event) => `
+          <div class="event">
+            <div class="event-meta">${event.ts ? new Date(event.ts).toLocaleString() : "no timestamp"} · ${escapeHtml(event.level)}</div>
+            <div class="event-message">${escapeHtml(event.message)}</div>
+          </div>
+        `).join("");
+        document.getElementById("events").innerHTML = events || `<div class="small">No recent events.</div>`;
+
+        document.getElementById("healthRaw").textContent = JSON.stringify(state.health, null, 2);
+      }
+
+      fetch("/api/state").then((res) => res.json()).then(render);
+      const es = new EventSource("/api/events");
+      es.addEventListener("state", (event) => render(JSON.parse(event.data)));
+    </script>
+  </body>
+</html>

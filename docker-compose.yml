@@ -1,0 +1,152 @@
+services:
+  openclaw-shell:
+    image: ${OPENCLAW_IMAGE:-clawforge-openclaw:latest}
+    build:
+      context: ./upstream
+      dockerfile: Dockerfile
+      args:
+        OPENCLAW_DOCKER_APT_PACKAGES: "build-essential file git curl"
+    env_file:
+      - .env
+    container_name: clawforge-openclaw-shell
+    profiles: ["shell"]
+    restart: unless-stopped
+    user: "0:0"
+    stdin_open: true
+    tty: true
+    working_dir: /share
+    healthcheck:
+      disable: true
+    environment:
+      HOME: /home/node
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      OPENCLAW_PRIMARY_MODEL: ${OPENCLAW_PRIMARY_MODEL:-nvidia/nemotron-3-super-120b-a12b}
+      OPENCLAW_FALLBACK_MODEL_1: ${OPENCLAW_FALLBACK_MODEL_1:-moonshotai/kimi-k2-instruct-0905}
+      OPENCLAW_FALLBACK_MODEL_2: ${OPENCLAW_FALLBACK_MODEL_2:-openai/gpt-oss-20b}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
+      APP_PREVIEW_PORT: ${APP_PREVIEW_PORT:-4310}
+      NPM_CONFIG_PREFIX: /home/node/.npm-global
+      PATH: /home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/node/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    ports:
+      - "${APP_PREVIEW_PORT:-4310}:${APP_PREVIEW_PORT:-4310}"
+    volumes:
+      - openclaw_home:/home/node/.openclaw
+      - linuxbrew:/home/linuxbrew/.linuxbrew
+      - npm_global:/home/node/.npm-global
+      - openclaw_logs:/var/log/openclaw
+      - ./:/share
+    command:
+      - /bin/sh
+      - -lc
+      - mkdir -p /home/node/.openclaw /home/node/.openclaw/identity /home/node/.npm-global/bin /home/linuxbrew/.linuxbrew /share /var/log/openclaw /share/projects /share/vendor && chown -R node:node /home/node/.openclaw /home/node/.npm-global /home/linuxbrew/.linuxbrew /var/log/openclaw && exec su - node -s /bin/sh -lc 'sleep infinity'
+
+  cloudflared-preview:
+    image: cloudflare/cloudflared:latest
+    container_name: clawforge-cloudflared-preview
+    profiles: ["preview"]
+    restart: unless-stopped
+    depends_on:
+      - openclaw-shell
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --url
+      - "http://host.docker.internal:${APP_PREVIEW_PORT:-4310}"
+
+  cloudflared-named:
+    image: cloudflare/cloudflared:latest
+    container_name: clawforge-cloudflared-named
+    profiles: ["preview-named"]
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:-}
+
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-clawforge-openclaw:latest}
+    build:
+      context: ./upstream
+      dockerfile: Dockerfile
+      args:
+        OPENCLAW_DOCKER_APT_PACKAGES: "build-essential file git curl"
+    env_file:
+      - .env
+    container_name: clawforge-openclaw-gateway
+    profiles: ["gateway"]
+    restart: unless-stopped
+    user: "0:0"
+    working_dir: /share
+    environment:
+      HOME: /home/node
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      OPENCLAW_PRIMARY_MODEL: ${OPENCLAW_PRIMARY_MODEL:-nvidia/nemotron-3-super-120b-a12b}
+      OPENCLAW_FALLBACK_MODEL_1: ${OPENCLAW_FALLBACK_MODEL_1:-moonshotai/kimi-k2-instruct-0905}
+      OPENCLAW_FALLBACK_MODEL_2: ${OPENCLAW_FALLBACK_MODEL_2:-openai/gpt-oss-20b}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
+      NPM_CONFIG_PREFIX: /home/node/.npm-global
+      PATH: /home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/node/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    ports:
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:${OPENCLAW_GATEWAY_PORT:-18789}"
+    volumes:
+      - openclaw_home:/home/node/.openclaw
+      - linuxbrew:/home/linuxbrew/.linuxbrew
+      - npm_global:/home/node/.npm-global
+      - openclaw_logs:/var/log/openclaw
+      - ./:/share
+    command:
+      - /bin/sh
+      - -lc
+      - mkdir -p /home/node/.openclaw /home/node/.openclaw/identity /home/node/.npm-global/bin /home/linuxbrew/.linuxbrew /share /var/log/openclaw /share/projects /share/vendor && chown -R node:node /home/node/.openclaw /home/node/.npm-global /home/linuxbrew/.linuxbrew /var/log/openclaw && exec su - node -s /bin/sh -lc 'openclaw gateway run --port "$OPENCLAW_GATEWAY_PORT"'
+
+  clawscope:
+    image: ${OPENCLAW_IMAGE:-clawforge-openclaw:latest}
+    build:
+      context: ./upstream
+      dockerfile: Dockerfile
+      args:
+        OPENCLAW_DOCKER_APT_PACKAGES: "build-essential file git curl"
+    env_file:
+      - .env
+    container_name: clawforge-clawscope
+    profiles: ["monitor"]
+    restart: unless-stopped
+    user: "0:0"
+    depends_on:
+      - openclaw-gateway
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    working_dir: /share
+    environment:
+      HOME: /home/node
+      CLAWSCOPE_PORT: ${CLAWSCOPE_PORT:-18880}
+      CLAWSCOPE_POLL_MS: 4000
+      CLAWSCOPE_STALE_MS: 90000
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      APP_PREVIEW_PORT: ${APP_PREVIEW_PORT:-4310}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
+      OPENCLAW_GATEWAY_URL: ws://host.docker.internal:${OPENCLAW_GATEWAY_PORT:-18789}
+      NPM_CONFIG_PREFIX: /home/node/.npm-global
+      PATH: /home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/node/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    ports:
+      - "${CLAWSCOPE_PORT:-18880}:${CLAWSCOPE_PORT:-18880}"
+    volumes:
+      - openclaw_home:/home/node/.openclaw
+      - linuxbrew:/home/linuxbrew/.linuxbrew
+      - npm_global:/home/node/.npm-global
+      - openclaw_logs:/var/log/openclaw
+      - ./:/share
+    command:
+      - /bin/sh
+      - -lc
+      - mkdir -p /home/node/.openclaw /home/node/.openclaw/identity /home/node/.npm-global/bin /home/linuxbrew/.linuxbrew /var/log/openclaw && chown -R node:node /home/node/.openclaw /home/node/.npm-global /home/linuxbrew/.linuxbrew /var/log/openclaw && exec su -m node -s /bin/sh -c 'node /share/monitor/server.js'
+
+volumes:
+  openclaw_home:
+  linuxbrew:
+  npm_global:
+  openclaw_logs:

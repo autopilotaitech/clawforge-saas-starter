@@ -27,4 +27,4 @@
 - Use `principal-architect` for strategic AI SaaS design.
 - Prefer `get-api-docs` and `chub` before coding against third-party APIs.
 - Keep generated projects inside `projects/` so the repo stays organized.
-
+- Reusable workflow prompts live under `prompts/` and should be reused instead of rewriting the same audit/fix/review structure every time.

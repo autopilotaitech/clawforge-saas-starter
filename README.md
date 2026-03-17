@@ -281,11 +281,16 @@ They are fetched by setup scripts and intentionally not committed into the publi
 
 ## Included prompts
 
+- `prompts/00-openclaw-workflow.md`
 - `prompts/01-beta-audit.md`
 - `prompts/02-implementation-plan.md`
 - `prompts/03-single-fix.md`
 - `prompts/04-wiring-audit.md`
 - `prompts/05-principal-architecture.md`
+- `prompts/01-route-audit-batch.md`
+- `prompts/02-consolidate-findings.md`
+- `prompts/03-implement-one-fix.md`
+- `prompts/04-post-fix-review.md`
 
 ## Useful commands
 

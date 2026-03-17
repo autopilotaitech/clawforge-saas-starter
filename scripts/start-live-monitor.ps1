@@ -1,3 +1,10 @@
+param(
+  [string]$StateDir,
+  [string]$Container,
+  [string]$Port = "18880",
+  [string]$PreviewPort = "4310"
+)
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -5,14 +12,34 @@ $monitorRoot = Join-Path $repoRoot "monitor"
 $pidPath = Join-Path $monitorRoot "clawscope-live.pid"
 $outLogPath = Join-Path $monitorRoot "clawscope-live.out.log"
 $errLogPath = Join-Path $monitorRoot "clawscope-live.err.log"
-$defaultStateDir = Join-Path $repoRoot ".openclaw"
 
-param(
-  [string]$StateDir = $defaultStateDir,
-  [string]$Container = "openclaw-gateway",
-  [string]$Port = "18880",
-  [string]$PreviewPort = "4310"
-)
+if (-not $StateDir) {
+  $localStateDir = Join-Path $repoRoot ".openclaw"
+  if (Test-Path $localStateDir) {
+    $StateDir = $localStateDir
+  } else {
+    $StateDir = $env:OPENCLAW_STATE_DIR
+  }
+}
+
+if (-not $Container) {
+  $starterContainer = "clawforge-openclaw-gateway"
+  $defaultContainer = "openclaw-gateway"
+  $starterExists = docker ps -a --format "{{.Names}}" | Select-String -SimpleMatch $starterContainer
+  $defaultExists = docker ps -a --format "{{.Names}}" | Select-String -SimpleMatch $defaultContainer
+
+  if ($starterExists) {
+    $Container = $starterContainer
+  } elseif ($defaultExists) {
+    $Container = $defaultContainer
+  } else {
+    throw "Could not auto-detect a gateway container. Pass -Container explicitly."
+  }
+}
+
+if (-not $StateDir) {
+  throw "Could not determine an OpenClaw state directory. Pass -StateDir explicitly."
+}
 
 if (Test-Path $pidPath) {
   $existingPid = Get-Content $pidPath | Select-Object -First 1

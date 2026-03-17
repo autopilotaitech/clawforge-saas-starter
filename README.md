@@ -139,6 +139,10 @@ Prepare local files:
 
 Edit `.env` and set `NVIDIA_API_KEY`.
 
+Get your API key from the NVIDIA API Catalog:
+
+- [https://build.nvidia.com/](https://build.nvidia.com/)
+
 The starter pins OpenClaw source to a stable upstream tag by default:
 
 ```text

@@ -428,6 +428,7 @@
 
       function taskStatusClass(task) {
         if (task.status === "complete") return "status-good";
+        if (task.status === "ctx-saturated") return "status-bad";
         if (task.status === "blocked") return "status-bad";
         return "status-warn";
       }
@@ -443,7 +444,12 @@
         document.getElementById("gatewayUrl").textContent = state.status?.data?.gateway?.url || "-";
 
         document.getElementById("activeTasks").textContent = state.summary.activeTasks;
-        document.getElementById("avgProgress").textContent = state.summary.avgProgressPct == null ? "-" : `${state.summary.avgProgressPct}%`;
+        document.getElementById("avgProgress").textContent = state.summary.contextSaturated
+          ? "SATURATED"
+          : state.summary.avgProgressPct == null
+          ? "-"
+          : `${state.summary.avgProgressPct}%`;
+        document.getElementById("avgProgress").className = `metric-value ${state.summary.contextSaturated ? "status-bad" : ""}`;
         document.getElementById("executionMode").textContent = modeWord(state.summary.executionMode);
         document.getElementById("executionMode").className = `metric-value ${state.summary.executionMode === "parallel" ? "status-good" : state.summary.executionMode === "serial" ? "status-warn" : ""}`;
         document.getElementById("activeAgentsNote").textContent = `${state.summary.activeAgents} active agent${state.summary.activeAgents === 1 ? "" : "s"}`;
@@ -469,7 +475,7 @@
               <div class="progress-bar" style="width:${Math.max(0, Math.min(100, task.progressPct || 0))}%"></div>
             </div>
             <div class="task-bottom">
-              <div><strong>${task.progressPct}%</strong> complete</div>
+              <div><strong>${task.contextSaturated ? "CTX SATURATED" : `${task.progressPct}% complete`}</strong>${task.contextPercentUsed != null ? ` <span class="small">(${task.contextPercentUsed}% ctx)</span>` : ""}</div>
               ${task.prompt ? `<div class="small">${escapeHtml(task.prompt)}</div>` : ""}
               ${task.recentTools?.length ? `<div class="chips">${task.recentTools.map((tool) => `<div class="chip">${escapeHtml(tool)}</div>`).join("")}</div>` : ""}
               ${task.finalAssistantText ? `<div class="small">Last answer: ${escapeHtml(task.finalAssistantText)}</div>` : ""}

@@ -46,6 +46,7 @@ let currentState = {
     executionMode: "unknown",
     activeTasks: 0,
     avgProgressPct: null,
+    contextSaturated: false,
   },
   health: null,
   status: null,
@@ -352,6 +353,45 @@ function normalizeSessions(raw) {
   });
 }
 
+function mergeSessionSources(primarySessions, statusData) {
+  const statusRecent = Array.isArray(statusData?.sessions?.recent) ? statusData.sessions.recent : [];
+  const merged = new Map();
+
+  for (const session of primarySessions || []) {
+    merged.set(session.id, { ...session });
+  }
+
+  for (const recent of statusRecent) {
+    const id = recent.sessionId || recent.id || recent.key || "unknown";
+    const existing = merged.get(id) || {
+      id,
+      agent: recent.agentId || recent.agent || "unknown",
+      title: recent.key || "Untitled session",
+      updatedAt: recent.updatedAt || null,
+      ageMs: recent.age ?? null,
+      stale: false,
+      model: recent.model || null,
+      tokenUsage: null,
+      raw: {},
+    };
+
+    merged.set(id, {
+      ...existing,
+      agent: existing.agent || recent.agentId || recent.agent || "unknown",
+      updatedAt: existing.updatedAt || recent.updatedAt || null,
+      ageMs: existing.ageMs ?? recent.age ?? null,
+      stale: existing.stale,
+      model: existing.model || recent.model || null,
+      raw: {
+        ...(existing.raw || {}),
+        ...recent,
+      },
+    });
+  }
+
+  return [...merged.values()];
+}
+
 function normalizeLogEntries(raw) {
   if (!raw) return [];
   const list = Array.isArray(raw)
@@ -459,6 +499,15 @@ function summarizeAlerts(health, sessions, logEntries, tasks) {
       level: "error",
       kind: "logs",
       message: `${recentErrors.length} recent error log(s) detected`,
+    });
+  }
+
+  const saturatedSessions = sessions.filter((session) => session.contextSaturated);
+  if (saturatedSessions.length > 0) {
+    alerts.push({
+      level: "error",
+      kind: "ctx",
+      message: `${saturatedSessions.length} session(s) are context saturated and should be abandoned`,
     });
   }
 
@@ -591,6 +640,51 @@ function estimateProgress(run, sessionAgeMs) {
   return Math.max(0, Math.min(100, progress));
 }
 
+function deriveContextSaturation(sessionMeta) {
+  const raw = sessionMeta.raw || {};
+  const percentUsed = Number(
+    raw.percentUsed ??
+      raw.percent_used ??
+      raw.contextPercentUsed ??
+      raw.context_percent_used ??
+      -1
+  );
+  const remainingTokens = Number(
+    raw.remainingTokens ??
+      raw.remaining_tokens ??
+      raw.contextRemaining ??
+      raw.context_remaining ??
+      NaN
+  );
+  const inputTokens = Number(raw.inputTokens ?? raw.input_tokens ?? NaN);
+  const contextTokens = Number(raw.contextTokens ?? raw.context_tokens ?? NaN);
+
+  if (Number.isFinite(percentUsed) && percentUsed >= 95) {
+    return { saturated: true, percentUsed };
+  }
+
+  if (Number.isFinite(remainingTokens) && remainingTokens <= 0) {
+    return { saturated: true, percentUsed: Number.isFinite(percentUsed) ? percentUsed : 100 };
+  }
+
+  if (
+    Number.isFinite(inputTokens) &&
+    Number.isFinite(contextTokens) &&
+    contextTokens > 0 &&
+    inputTokens / contextTokens >= 0.95
+  ) {
+    return {
+      saturated: true,
+      percentUsed: Math.round((inputTokens / contextTokens) * 100),
+    };
+  }
+
+  return {
+    saturated: false,
+    percentUsed: Number.isFinite(percentUsed) ? percentUsed : null,
+  };
+}
+
 function deriveTaskFromTranscript(sessionMeta, transcript) {
   const sessionStartedAt = transcript.find((entry) => entry.type === "session")?.timestamp || null;
   const userMessages = transcript.filter(
@@ -646,6 +740,7 @@ function deriveTaskFromTranscript(sessionMeta, transcript) {
     ? promptText.split(/\r?\n/).find((line) => line.trim())?.trim() || promptText.slice(0, 120)
     : sessionMeta.title || "Untitled task";
   const uniqueTools = [...new Set(recentTools)].slice(-5);
+  const ctx = deriveContextSaturation(sessionMeta);
   const phase = detectPhase({
     firstAssistantAt,
     lastToolCall,
@@ -654,17 +749,22 @@ function deriveTaskFromTranscript(sessionMeta, transcript) {
     toolResults,
     finalAssistantText,
   });
-  const progressPct = estimateProgress(
+  let progressPct = estimateProgress(
     { firstAssistantAt, lastToolCall, lastToolResult, toolCalls, toolResults, finalAssistantText },
     sessionMeta.ageMs
   );
-  const status = finalAssistantText
+  let status = finalAssistantText
     ? "complete"
     : sessionMeta.stale
     ? "blocked"
     : firstAssistantAt
     ? "running"
     : "queued";
+
+  if (ctx.saturated && !finalAssistantText) {
+    status = "ctx-saturated";
+    progressPct = 100;
+  }
 
   return {
     id: sessionMeta.id,
@@ -675,6 +775,8 @@ function deriveTaskFromTranscript(sessionMeta, transcript) {
     status,
     phase,
     progressPct,
+    contextPercentUsed: ctx.percentUsed,
+    contextSaturated: ctx.saturated,
     startedAt: lastUserAt,
     updatedAt: sessionMeta.updatedAt || lastAssistantAt || lastUserAt,
     ageMs: sessionMeta.ageMs,
@@ -751,7 +853,10 @@ async function poll() {
     }
   }
 
-  const normalizedSessions = normalizeSessions(sessionsResult.data);
+  const normalizedSessions = mergeSessionSources(
+    normalizeSessions(sessionsResult.data),
+    status.ok ? status.data : null
+  );
   const normalizedLogEntries = normalizeLogEntries(parseNdjson(logs.stdout));
   pushEvents(normalizedLogEntries);
 
@@ -775,6 +880,7 @@ async function poll() {
     lastEvent && lastEvent.ts ? Math.max(0, Date.now() - new Date(lastEvent.ts).getTime()) : null;
   const avgProgressPct =
     tasks.length > 0 ? Math.round(tasks.reduce((sum, task) => sum + task.progressPct, 0) / tasks.length) : null;
+  const contextSaturated = tasks.some((task) => task.contextSaturated);
 
   currentState = {
     ...currentState,
@@ -801,7 +907,8 @@ async function poll() {
       lastEventAgeMs,
       executionMode,
       activeTasks: tasks.filter((task) => task.status !== "complete").length,
-      avgProgressPct,
+      avgProgressPct: contextSaturated ? null : avgProgressPct,
+      contextSaturated,
     },
   };
 

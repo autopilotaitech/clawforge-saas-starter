@@ -192,6 +192,10 @@ Attach the monitor to an already-running OpenClaw gateway without starting the s
 .\scripts\start-live-monitor.ps1
 ```
 
+Caveat:
+
+- if there is no local `.openclaw` state directory and no detectable gateway container, you must pass `-StateDir` or `-Container` explicitly
+
 Show the tokenized dashboard URL:
 
 ```powershell

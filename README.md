@@ -242,6 +242,8 @@ For a stable hostname, set `CLOUDFLARE_TUNNEL_TOKEN` in `.env` and use:
 
 ClawScope is a lightweight command-center layer included in this starter.
 
+![ClawScope dashboard](media/monitor.png)
+
 It polls OpenClaw's real CLI surfaces and gives you:
 
 - gateway health

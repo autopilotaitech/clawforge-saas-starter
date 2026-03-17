@@ -68,7 +68,7 @@ Public defaults live in `.env.example`.
 Local machine overrides belong in `.env`. For example:
 
 ```text
-OPENCLAW_IMAGE=openclaw-local:latest
+OPENCLAW_IMAGE=<your-prebuilt-openclaw-image>
 ```
 
 That local override is not the public default and should not be documented as required for other users.

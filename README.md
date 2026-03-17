@@ -2,10 +2,12 @@
 
 Public-safe OpenClaw starter for AI SaaS work on NVIDIA-hosted models.
 
+[![Support this project](https://img.shields.io/badge/Support-Tip%20Jar-ff6b6b?style=for-the-badge)](https://buy.stripe.com/cNi28q3bZ4Vf3gpdXoenS03)
+
 Maintained by [Autopilot AI Tech](https://github.com/autopilotaitech)  
 Website: [autopilotaitech.com](https://autopilotaitech.com)
 
-If this starter saves you time, you can support it here: [Tip jar](https://buy.stripe.com/cNi28q3bZ4Vf3gpdXoenS03)
+If this starter saves you time, support the work here: [Tip jar](https://buy.stripe.com/cNi28q3bZ4Vf3gpdXoenS03)
 
 ## Acknowledgements
 
